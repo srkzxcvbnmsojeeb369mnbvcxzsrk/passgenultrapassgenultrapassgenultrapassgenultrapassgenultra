@@ -1,396 +1,57 @@
-name: Build PassGenUltra APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Setup Java JDK
         uses: actions/setup-java@v4
         with:
+          distribution: 'zulu'
           java-version: '17'
-          distribution: 'temurin'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
 
-      - name: Create Android project structure
+      - name: Build Android APK (Debug)
         run: |
-          mkdir -p PassGenUltra/app/src/main/java/com/passgenultra/app
-          mkdir -p PassGenUltra/app/src/main/res/layout
-          mkdir -p PassGenUltra/app/src/main/res/values
-          mkdir -p PassGenUltra/app/src/main/res/mipmap-hdpi
-          mkdir -p PassGenUltra/app/src/main/res/mipmap-mdpi
-          mkdir -p PassGenUltra/app/src/main/res/mipmap-xhdpi
-          mkdir -p PassGenUltra/app/src/main/res/mipmap-xxhdpi
-          mkdir -p PassGenUltra/app/src/main/res/mipmap-xxxhdpi
-          mkdir -p PassGenUltra/gradle/wrapper
+          cd android
+          ./gradlew assembleDebug
 
-      - name: Create settings.gradle
-        run: |
-          cat > PassGenUltra/settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "PassGenUltra"
-          include ':app'
-          EOF
-
-      - name: Create root build.gradle
-        run: |
-          cat > PassGenUltra/build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application' version '8.2.2' apply false
-          }
-          EOF
-
-      - name: Create app build.gradle
-        run: |
-          cat > PassGenUltra/app/build.gradle << 'EOF'
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              namespace 'com.passgenultra.app'
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.passgenultra.app"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0.0"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                      signingConfig signingConfigs.debug
-                  }
-                  debug {
-                      applicationIdSuffix ".debug"
-                      debuggable true
-                  }
-              }
-
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-          }
-
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
-          }
-          EOF
-
-      - name: Create gradle wrapper properties
-        run: |
-          cat > PassGenUltra/gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.4-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
-
-      - name: Create gradlew
-        run: |
-          cat > PassGenUltra/gradlew << 'GRADLEW'
-          #!/bin/sh
-          GRADLE_WRAPPER_JAR="$(dirname "$0")/gradle/wrapper/gradle-wrapper.jar"
-          exec java -jar "$GRADLE_WRAPPER_JAR" "$@"
-          GRADLEW
-          chmod +x PassGenUltra/gradlew
-
-      - name: Download gradle wrapper jar
-        run: |
-          mkdir -p PassGenUltra/gradle/wrapper
-          curl -sL "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-            -o PassGenUltra/gradle/wrapper/gradle-wrapper.jar || \
-          wget -q "https://raw.githubusercontent.com/gradle/gradle/v8.4.0/gradle/wrapper/gradle-wrapper.jar" \
-            -O PassGenUltra/gradle/wrapper/gradle-wrapper.jar
-
-      - name: Create AndroidManifest.xml
-        run: |
-          cat > PassGenUltra/app/src/main/AndroidManifest.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-              <uses-permission android:name="android.permission.INTERNET" />
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="PassGen Ultra"
-                  android:roundIcon="@mipmap/ic_launcher_round"
-                  android:supportsRtl="true"
-                  android:theme="@style/AppTheme"
-                  android:usesCleartextTraffic="false">
-
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true"
-                      android:configChanges="orientation|screenSize|keyboardHidden"
-                      android:windowSoftInputMode="adjustResize">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-
-              </application>
-
-          </manifest>
-          EOF
-
-      - name: Create MainActivity.java
-        run: |
-          cat > PassGenUltra/app/src/main/java/com/passgenultra/app/MainActivity.java << 'EOF'
-          package com.passgenultra.app;
-
-          import android.app.Activity;
-          import android.os.Bundle;
-          import android.webkit.WebChromeClient;
-          import android.webkit.WebSettings;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import android.view.Window;
-          import android.graphics.Color;
-          import android.os.Build;
-          import android.view.WindowManager;
-
-          public class MainActivity extends Activity {
-
-              private WebView webView;
-              private static final String APP_URL = "https://pass-gen-pro-369.vercel.app";
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-
-                  // Full screen / edge-to-edge
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                      Window window = getWindow();
-                      window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-                      window.setStatusBarColor(Color.parseColor("#1a0533"));
-                  }
-
-                  setContentView(R.layout.activity_main);
-
-                  webView = findViewById(R.id.webview);
-
-                  WebSettings settings = webView.getSettings();
-                  settings.setJavaScriptEnabled(true);
-                  settings.setDomStorageEnabled(true);
-                  settings.setDatabaseEnabled(true);
-                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-                  settings.setAllowFileAccess(false);
-                  settings.setGeolocationEnabled(false);
-                  settings.setMediaPlaybackRequiresUserGesture(false);
-                  settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
-
-                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                      settings.setSafeBrowsingEnabled(true);
-                  }
-
-                  webView.setWebViewClient(new WebViewClient() {
-                      @Override
-                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                          if (url.startsWith("https://pass-gen-pro-369.vercel.app") ||
-                              url.startsWith("https://sojib.iam.bd")) {
-                              return false;
-                          }
-                          return true;
-                      }
-                  });
-
-                  webView.setWebChromeClient(new WebChromeClient());
-                  webView.loadUrl(APP_URL);
-              }
-
-              @Override
-              public void onBackPressed() {
-                  if (webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-
-              @Override
-              protected void onPause() {
-                  super.onPause();
-                  webView.onPause();
-              }
-
-              @Override
-              protected void onResume() {
-                  super.onResume();
-                  webView.onResume();
-              }
-
-              @Override
-              protected void onDestroy() {
-                  webView.destroy();
-                  super.onDestroy();
-              }
-          }
-          EOF
-
-      - name: Create activity_main.xml layout
-        run: |
-          cat > PassGenUltra/app/src/main/res/layout/activity_main.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <RelativeLayout
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="#1a0533">
-
-              <WebView
-                  android:id="@+id/webview"
-                  android:layout_width="match_parent"
-                  android:layout_height="match_parent" />
-
-          </RelativeLayout>
-          EOF
-
-      - name: Create colors.xml
-        run: |
-          cat > PassGenUltra/app/src/main/res/values/colors.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <color name="colorPrimary">#1a0533</color>
-              <color name="colorPrimaryDark">#0d0020</color>
-              <color name="colorAccent">#7c3aed</color>
-          </resources>
-          EOF
-
-      - name: Create styles.xml
-        run: |
-          cat > PassGenUltra/app/src/main/res/values/styles.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
-                  <item name="colorPrimary">@color/colorPrimary</item>
-                  <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-                  <item name="colorAccent">@color/colorAccent</item>
-                  <item name="android:windowBackground">@color/colorPrimary</item>
-              </style>
-          </resources>
-          EOF
-
-      - name: Create strings.xml
-        run: |
-          cat > PassGenUltra/app/src/main/res/values/strings.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">PassGen Ultra</string>
-          </resources>
-          EOF
-
-      - name: Create proguard rules
-        run: |
-          cat > PassGenUltra/app/proguard-rules.pro << 'EOF'
-          -keep class com.passgenultra.app.** { *; }
-          EOF
-
-      - name: Generate launcher icons (simple colored PNG)
-        run: |
-          python3 - << 'PYEOF'
-          import struct, zlib
-
-          def create_png(size, r, g, b):
-              def chunk(name, data):
-                  c = struct.pack('>I', len(data)) + name + data
-                  crc = zlib.crc32(name + data) & 0xffffffff
-                  return c + struct.pack('>I', crc)
-
-              sig = b'\x89PNG\r\n\x1a\n'
-              ihdr_data = struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0)
-              ihdr = chunk(b'IHDR', ihdr_data)
-
-              raw = b''
-              for y in range(size):
-                  row = b'\x00'
-                  for x in range(size):
-                      cx, cy = x - size//2, y - size//2
-                      dist = (cx*cx + cy*cy) ** 0.5
-                      if dist < size * 0.4:
-                          row += bytes([r, g, b])
-                      else:
-                          row += bytes([26, 5, 51])
-                  raw += row
-
-              compressed = zlib.compress(raw, 9)
-              idat = chunk(b'IDAT', compressed)
-              iend = chunk(b'IEND', b'')
-              return sig + ihdr + idat + iend
-
-          sizes = {
-              'mdpi': 48, 'hdpi': 72, 'xhdpi': 96,
-              'xxhdpi': 144, 'xxxhdpi': 192
-          }
-          for dpi, size in sizes.items():
-              png = create_png(size, 124, 58, 237)
-              path = f'PassGenUltra/app/src/main/res/mipmap-{dpi}/ic_launcher.png'
-              with open(path, 'wb') as f:
-                  f.write(png)
-              path_round = f'PassGenUltra/app/src/main/res/mipmap-{dpi}/ic_launcher_round.png'
-              with open(path_round, 'wb') as f:
-                  f.write(png)
-          print("Icons created!")
-          PYEOF
-
-      - name: Build Debug APK
-        working-directory: PassGenUltra
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Build Release APK (debug-signed)
-        working-directory: PassGenUltra
-        run: |
-          ./gradlew assembleRelease --no-daemon
-
-      - name: List APK output
-        run: |
-          find PassGenUltra/app/build/outputs/apk -name "*.apk" -type f
-
-      - name: Upload Debug APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PassGenUltra-debug
-          path: PassGenUltra/app/build/outputs/apk/debug/*.apk
-          retention-days: 30
-
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: PassGenUltra-release
-          path: PassGenUltra/app/build/outputs/apk/release/*.apk
-          retention-days: 30
+          name: app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
