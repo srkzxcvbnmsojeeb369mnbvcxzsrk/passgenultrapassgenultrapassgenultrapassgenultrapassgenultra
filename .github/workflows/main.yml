@@ -41,6 +41,11 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      - name: Fix Gradle Wrapper
+        run: |
+          cd android
+          gradle wrapper
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
