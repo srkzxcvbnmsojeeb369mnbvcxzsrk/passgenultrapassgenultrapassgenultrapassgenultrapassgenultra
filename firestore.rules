@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: backups
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - payload: string (required) - AES-256 encrypted data
+    //   - updatedAt: number (required) - timestamp
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // Domain Validator
+    function isValidBackup(data) {
+      return hasRequiredFields(['payload', 'updatedAt']) &&
+             hasOnlyAllowedFields(['payload', 'updatedAt']) &&
+             data.payload is string &&
+             data.payload.size() < 1048576 && // 1MB limit for payload
+             data.updatedAt is number;
+    }
+
+    match /backups/{userId} {
+      allow read, write: if isOwner(userId);
+      
+      match /versions/{versionId} {
+        allow read, write: if isOwner(userId);
+        
+        match /chunks/{chunkId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+    }
+  }
+}

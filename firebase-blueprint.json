@@ -1,0 +1,26 @@
+{
+  "entities": {
+    "Backup": {
+      "title": "Backup",
+      "description": "Encrypted backup data for a user",
+      "type": "object",
+      "properties": {
+        "payload": {
+          "type": "string",
+          "description": "AES-256 encrypted JSON string containing history, settings, and notes"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of the last backup"
+        }
+      },
+      "required": ["payload", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/backups/{userId}": {
+      "schema": "Backup",
+      "description": "User-specific backup document"
+    }
+  }
+}

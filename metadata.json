@@ -1,0 +1,5 @@
+{
+  "name": "PassGen Pro",
+  "description": "A professional password generator and secure notes application with zero-knowledge encryption concepts and Google Keep inspired UI.",
+  "requestFramePermissions": []
+}
