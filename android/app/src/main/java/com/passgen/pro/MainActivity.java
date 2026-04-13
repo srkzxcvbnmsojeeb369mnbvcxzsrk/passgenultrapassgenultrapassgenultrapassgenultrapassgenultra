@@ -21,9 +21,9 @@ public class MainActivity extends BridgeActivity {
         WebSettings settings = webView.getSettings();
 
         // 1. Bypass Google's "disallowed_useragent" WebView block
-        String userAgent = settings.getUserAgentString();
-        userAgent = userAgent.replace("; wv", "");
-        settings.setUserAgentString(userAgent);
+        String originalUserAgent = settings.getUserAgentString();
+        final String finalUserAgent = originalUserAgent.replace("; wv", "");
+        settings.setUserAgentString(finalUserAgent);
 
         // 2. Enable necessary WebView features for Google Sign-In
         settings.setJavaScriptEnabled(true);
@@ -46,7 +46,7 @@ public class MainActivity extends BridgeActivity {
                 WebView newWebView = new WebView(MainActivity.this);
                 WebSettings newSettings = newWebView.getSettings();
                 newSettings.setJavaScriptEnabled(true);
-                newSettings.setUserAgentString(userAgent);
+                newSettings.setUserAgentString(finalUserAgent);
                 newSettings.setDomStorageEnabled(true);
                 android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(newWebView, true);
                 
