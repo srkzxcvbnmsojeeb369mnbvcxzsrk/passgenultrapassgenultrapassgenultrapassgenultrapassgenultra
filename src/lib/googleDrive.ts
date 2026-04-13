@@ -2,40 +2,15 @@ import { DriveFile } from '../types';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-let accessToken = '';
-let tokenClient: any = null;
-let gisInitialized = false;
+let accessToken = localStorage.getItem('drive_access_token') || '';
+
+// Listen for token updates from Firebase auth flow
+window.addEventListener('drive_token_received', () => {
+  accessToken = localStorage.getItem('drive_access_token') || '';
+});
 
 export const initDriveClient = async (apiKey: string, clientId: string) => {
-  if (gisInitialized) return;
-
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      try {
-        tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: SCOPES,
-          callback: (tokenResponse: any) => {
-            if (tokenResponse.error !== undefined) {
-              console.error('GIS Error:', tokenResponse);
-            }
-          },
-        });
-        gisInitialized = true;
-        resolve();
-      } catch (error) {
-        reject(error);
-      }
-    };
-    script.onerror = () => {
-      reject(new Error('Failed to load Google Identity Services script'));
-    };
-    document.body.appendChild(script);
-  });
+  accessToken = localStorage.getItem('drive_access_token') || '';
 };
 
 export const checkDriveAuth = () => {
@@ -44,20 +19,39 @@ export const checkDriveAuth = () => {
 
 export const signInToDrive = async () => {
   return new Promise<void>((resolve, reject) => {
-    if (!tokenClient) return reject(new Error('Drive client not initialized'));
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     
-    try {
-      tokenClient.callback = (tokenResponse: any) => {
-        if (tokenResponse.error !== undefined) {
-          reject(new Error(tokenResponse.error));
-        } else {
-          accessToken = tokenResponse.access_token;
-          resolve();
-        }
-      };
-      tokenClient.requestAccessToken({ prompt: 'consent' });
-    } catch (error) {
-      reject(error);
+    const doAuth = () => {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: SCOPES,
+          callback: (response: any) => {
+            if (response.error) {
+              reject(new Error(response.error));
+            } else {
+              accessToken = response.access_token;
+              localStorage.setItem('drive_access_token', accessToken);
+              resolve();
+            }
+          }
+        });
+        client.requestAccessToken();
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    if (!window.google?.accounts) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = doAuth;
+      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+      document.body.appendChild(script);
+    } else {
+      doAuth();
     }
   });
 };
