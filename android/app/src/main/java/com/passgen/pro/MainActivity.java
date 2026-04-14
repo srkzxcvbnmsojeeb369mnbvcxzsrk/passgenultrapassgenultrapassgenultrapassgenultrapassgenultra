@@ -59,7 +59,27 @@ public class MainActivity extends BridgeActivity {
                 
                 newWebView.setWebViewClient(new WebViewClient() {
                     @Override
+                    public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                        String url = request.getUrl().toString();
+                        if (url.contains("accounts.google.com") || url.contains("oauth")) {
+                            androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
+                            androidx.browser.customtabs.CustomTabsIntent customTabsIntent = builder.build();
+                            customTabsIntent.launchUrl(MainActivity.this, android.net.Uri.parse(url));
+                            dialog.dismiss();
+                            return true;
+                        }
+                        return false;
+                    }
+
+                    @Override
                     public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                        if (url.contains("accounts.google.com") || url.contains("oauth")) {
+                            androidx.browser.customtabs.CustomTabsIntent.Builder builder = new androidx.browser.customtabs.CustomTabsIntent.Builder();
+                            androidx.browser.customtabs.CustomTabsIntent customTabsIntent = builder.build();
+                            customTabsIntent.launchUrl(MainActivity.this, android.net.Uri.parse(url));
+                            dialog.dismiss();
+                            return true;
+                        }
                         return false; // Let the WebView load the URL
                     }
                 });
@@ -101,5 +121,15 @@ public class MainActivity extends BridgeActivity {
                 return super.onConsoleMessage(consoleMessage);
             }
         });
+    }
+
+    @Override
+    protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        android.net.Uri data = intent.getData();
+        if (data != null && "passgen.pro.bd".equals(data.getHost())) {
+            WebView webView = this.bridge.getWebView();
+            webView.loadUrl(data.toString());
+        }
     }
 }

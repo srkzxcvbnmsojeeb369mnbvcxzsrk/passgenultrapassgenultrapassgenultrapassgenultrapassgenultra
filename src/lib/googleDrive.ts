@@ -1,4 +1,5 @@
 import { DriveFile } from '../types';
+import { signInWithGoogle } from '../firebase';
 
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
@@ -18,52 +19,7 @@ export const checkDriveAuth = () => {
 };
 
 export const signInToDrive = async () => {
-  return new Promise<void>((resolve, reject) => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '395057172046-756phkra6k1j091467n3ji9jbjlkcruc.apps.googleusercontent.com';
-    
-    if (!clientId) {
-      alert('Google Client ID is missing!');
-      return reject(new Error('Missing Client ID'));
-    }
-
-    const doAuth = () => {
-      try {
-        const client = window.google.accounts.oauth2.initTokenClient({
-          client_id: clientId,
-          scope: SCOPES,
-          callback: (response: any) => {
-            if (response.error) {
-              alert('Drive Sign-In Error: ' + response.error);
-              reject(new Error(response.error));
-            } else {
-              accessToken = response.access_token;
-              localStorage.setItem('drive_access_token', accessToken);
-              resolve();
-            }
-          }
-        });
-        client.requestAccessToken();
-      } catch (error: any) {
-        alert('Drive Auth Init Error: ' + error.message);
-        reject(error);
-      }
-    };
-
-    if (!window.google?.accounts) {
-      const script = document.createElement('script');
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      script.onload = doAuth;
-      script.onerror = () => {
-        alert('Failed to load Google Identity Services. Please check your internet connection.');
-        reject(new Error('Failed to load Google Identity Services'));
-      };
-      document.body.appendChild(script);
-    } else {
-      doAuth();
-    }
-  });
+  return signInWithGoogle();
 };
 
 export const exportToDrive = async (encryptedData: string, fileName: string) => {

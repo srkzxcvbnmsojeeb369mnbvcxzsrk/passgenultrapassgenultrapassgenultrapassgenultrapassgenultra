@@ -44,7 +44,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import CryptoJS from 'crypto-js';
 import { auth, signInWithGoogle, logout, db } from './firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser, getRedirectResult, GoogleAuthProvider } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { GoogleGenAI } from "@google/genai";
 import { Note, PasswordOptions, AppSettings, AccentColor, Theme, HistoryItem, BackupData, PasswordType, Label, BackupMeta, DriveFile } from './types';
@@ -447,6 +447,22 @@ function AppContent() {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
     });
+
+    // Handle redirect result for Google Sign-In to get Drive access token
+    getRedirectResult(auth).then((result) => {
+      if (result) {
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const token = credential?.accessToken;
+        if (token) {
+          localStorage.setItem('drive_access_token', token);
+          window.dispatchEvent(new CustomEvent('drive_token_received'));
+        }
+      }
+    }).catch((error) => {
+      console.error("Redirect auth error:", error);
+      showToast('Authentication error: ' + error.message, 'error');
+    });
+
     return () => unsubscribe();
   }, []);
 
