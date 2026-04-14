@@ -9,8 +9,13 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 export const signInWithGoogle = () => {
   return new Promise((resolve, reject) => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '395057172046-756phkra6k1j091467n3ji9jbjlkcruc.apps.googleusercontent.com';
     
+    if (!clientId) {
+      alert('Google Client ID is missing!');
+      return reject(new Error('Missing Client ID'));
+    }
+
     const doAuth = () => {
       try {
         const client = window.google.accounts.oauth2.initTokenClient({
@@ -18,6 +23,7 @@ export const signInWithGoogle = () => {
           scope: 'openid email profile https://www.googleapis.com/auth/drive.file',
           callback: (response: any) => {
             if (response.error) {
+              alert('Google Sign-In Error: ' + response.error);
               reject(new Error(response.error));
               return;
             }
@@ -30,11 +36,15 @@ export const signInWithGoogle = () => {
             const credential = GoogleAuthProvider.credential(null, response.access_token);
             signInWithCredential(auth, credential)
               .then(resolve)
-              .catch(reject);
+              .catch((err) => {
+                alert('Firebase Auth Error: ' + err.message);
+                reject(err);
+              });
           }
         });
         client.requestAccessToken();
-      } catch (error) {
+      } catch (error: any) {
+        alert('Auth Init Error: ' + error.message);
         reject(error);
       }
     };
@@ -45,7 +55,10 @@ export const signInWithGoogle = () => {
       script.async = true;
       script.defer = true;
       script.onload = doAuth;
-      script.onerror = () => reject(new Error('Failed to load Google Identity Services'));
+      script.onerror = () => {
+        alert('Failed to load Google Identity Services. Please check your internet connection.');
+        reject(new Error('Failed to load Google Identity Services'));
+      };
       document.body.appendChild(script);
     } else {
       doAuth();

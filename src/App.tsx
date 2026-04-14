@@ -1008,7 +1008,7 @@ function AppContent() {
               {user.photoURL ? <img src={user.photoURL} alt="User" className="w-full h-full object-cover" /> : user.displayName?.charAt(0) || 'U'}
             </button>
           ) : (
-            <button onClick={signInWithGoogle} className="text-gray-500 dark:text-gray-400 hover:text-accent transition-colors">
+            <button onClick={() => signInWithGoogle().catch((e: any) => alert('Login Failed: ' + e.message))} className="text-gray-500 dark:text-gray-400 hover:text-accent transition-colors">
               <User size={28} />
             </button>
           )}
